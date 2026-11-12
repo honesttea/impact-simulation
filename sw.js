@@ -1,5 +1,5 @@
 // Ao mudar qualquer arquivo, aumente VERSAO para o Quest baixar a nova copia.
-const VERSAO = '8';
+const VERSAO = '9';
 const NOME_CACHE = `simulador-impacto-v${VERSAO}`;
 
 const ARQUIVOS = [
@@ -32,6 +32,8 @@ const ARQUIVOS = [
   './assets/modelos/tree_oak.glb',
   './assets/modelos/tree_pineRoundA.glb',
   './assets/modelos/tree_pineTallA.glb',
+  './assets/modelos/estrada/light-curved.glb',
+  './assets/modelos/estrada/Textures/colormap.png',
 ];
 
 self.addEventListener('install', (evento) => {

@@ -14,6 +14,9 @@ const ESCALA_CARRO_DA_FRENTE = 1.2;
 const ALTURA_RELATIVA_LANTERNA = 0.5;
 const MODELOS_ARVORE = ['tree_default.glb', 'tree_oak.glb', 'tree_pineRoundA.glb', 'tree_pineTallA.glb'];
 const ESCALA_ARVORE = 4.5;
+const MODELO_POSTE = 'estrada/light-curved.glb';
+// O modelo tem 0,67 m: estica mais na altura e no braco (z) do que na espessura (x).
+const ESCALA_POSTE = new THREE.Vector3(6, 11, 9);
 const EIXO_Y = new THREE.Vector3(0, 1, 0);
 
 export function criarCena(renderer) {
@@ -53,6 +56,9 @@ export function criarCena(renderer) {
   Promise.all(MODELOS_ARVORE.map(carregarPartes))
     .then(paisagem.trocarArvores)
     .catch((erro) => console.warn('Arvores simples:', erro));
+  carregarPartes(MODELO_POSTE)
+    .then(paisagem.trocarPostes)
+    .catch((erro) => console.warn('Postes simples:', erro));
 
   cena.add(criarNossoCarro());
 
@@ -137,7 +143,25 @@ function criarPaisagem() {
     return malha;
   };
 
-  instanciar(new THREE.CylinderGeometry(0.08, 0.12, 7, 6), new THREE.MeshLambertMaterial({ color: 0x8a8d90 }), postes, 3.5);
+  const postesSimples = instanciar(new THREE.CylinderGeometry(0.08, 0.12, 7, 6), new THREE.MeshLambertMaterial({ color: 0x8a8d90 }), postes, 3.5);
+
+  // O braco do modelo aponta para -Z; gira cada poste para o braco ficar sobre a estrada.
+  function trocarPostes(partes) {
+    grupo.remove(postesSimples);
+    const posicao = new THREE.Vector3();
+    const giro = new THREE.Quaternion();
+    for (const { geometria, material } of partes) {
+      const malha = new THREE.InstancedMesh(geometria, material, postes.length);
+      postes.forEach(([x, z], i) => {
+        posicao.set(x, 0, z);
+        giro.setFromAxisAngle(EIXO_Y, x > 0 ? Math.PI / 2 : -Math.PI / 2);
+        malha.setMatrixAt(i, matriz.compose(posicao, giro, ESCALA_POSTE));
+      });
+      malha.frustumCulled = false;
+      grupo.add(malha);
+    }
+  }
+
   const arvoresSimples = [
     instanciar(new THREE.CylinderGeometry(0.15, 0.22, 2.4, 6), new THREE.MeshLambertMaterial({ color: 0x6b4a2f }), arvores, 1.2),
     instanciar(new THREE.ConeGeometry(1.6, 4.2, 7), new THREE.MeshLambertMaterial({ color: 0x2f6b34 }), arvores, 4.2),
@@ -165,7 +189,7 @@ function criarPaisagem() {
     });
   }
 
-  return { grupo, trocarArvores };
+  return { grupo, trocarArvores, trocarPostes };
 }
 
 function criarCarroDaFrente() {
