@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulador de Impacto VR</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icone.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#101418">
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #101418; font-family: system-ui, sans-serif; }
+    canvas { display: block; touch-action: none; }
+    #inicio {
+      position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 24px; background: rgba(16, 20, 24, 0.92); color: #fff; text-align: center; padding: 24px;
+    }
+    #inicio[hidden] { display: none; }
+    h1 { margin: 0; font-size: 36px; }
+    button { font: inherit; border: 0; border-radius: 16px; cursor: pointer; }
+    #entrar-vr { font-size: 44px; font-weight: 700; padding: 36px 72px; background: #1f7a3a; color: #fff; }
+    #entrar-vr:disabled { background: #444; color: #999; cursor: default; }
+    #ver-navegador { font-size: 18px; padding: 12px 24px; background: #2b3138; color: #ddd; }
+    #aviso { min-height: 1.4em; color: #ffcf66; margin: 0; }
+    #versao { color: #8fa3b5; margin: 0; }
+    .teclas { color: #8fa3b5; font-size: 15px; margin: 0; }
+  </style>
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three/three.module.js" } }
+  </script>
+</head>
+<body>
+  <div id="inicio">
+    <h1>Simulador de Impacto</h1>
+    <button id="entrar-vr" type="button">Entrar no VR</button>
+    <p id="aviso"></p>
+    <button id="ver-navegador" type="button">Ver no navegador (teste no computador)</button>
+    <p class="teclas">No computador: arrastar o mouse para olhar, A dirige, espaço freia, B volta, setas ajustam T, C liga o bipe de calibração, D depuração.</p>
+    <p id="versao">Preparando modo offline...</p>
+  </div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
