@@ -1,11 +1,10 @@
 import * as THREE from 'three';
 import { config } from '../config.js';
-import { criarAudio } from './audio.js';
 import { criarCena } from './cena.js';
 import { POSICAO_BANCO } from './carro.js';
 import { criarEfeitos } from './efeitos.js';
 import { criarEntrada } from './entrada.js';
-import { criarSimulacao, PARADO, MENSAGEM } from './estados.js';
+import { criarSimulacao, MENSAGEM } from './estados.js';
 import { criarPainelTexto } from './painel.js';
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -26,21 +25,12 @@ cena.add(tranco);
 tranco.add(rig);
 rig.add(camera);
 
-const audio = criarAudio();
 const entrada = criarEntrada();
 const efeitos = criarEfeitos({ cena, camera, tranco });
-const simulacao = criarSimulacao({ audio, recentralizar: () => { recentralizarPendente = true; } });
+const simulacao = criarSimulacao({ recentralizar: () => { recentralizarPendente = true; } });
 
 const formatarNumero = (valor, casas) =>
   valor.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
-
-const painelTempo = criarPainelTexto({ larguraPx: 640, alturaPx: 220, larguraMetros: 0.18, tamanhoFonte: 56 });
-painelTempo.malha.position.set(-0.19, -0.16, -0.6);
-camera.add(painelTempo.malha);
-
-const painelDepuracao = criarPainelTexto({ larguraPx: 512, alturaPx: 300, larguraMetros: 0.2, tamanhoFonte: 42 });
-painelDepuracao.malha.position.set(0.2, -0.12, -0.6);
-camera.add(painelDepuracao.malha);
 
 const painelMensagem = criarPainelTexto({ larguraPx: 1024, alturaPx: 360, larguraMetros: 1.1, tamanhoFonte: 66 });
 painelMensagem.malha.position.set(0, 0.05, -1.4);
@@ -105,45 +95,13 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-let depuracaoLigada = false;
-let versao = '?';
-let fps = 0;
-let quadrosContados = 0;
-let inicioContagemMs = 0;
 let ultimoQuadroMs = null;
-
-function contarQuadro(instanteMs) {
-  quadrosContados++;
-  if (instanteMs - inicioContagemMs >= 500) {
-    fps = Math.round((quadrosContados * 1000) / (instanteMs - inicioContagemMs));
-    quadrosContados = 0;
-    inicioContagemMs = instanteMs;
-  }
-}
-
-function atualizarPaineis(quadro) {
-  const tempoTexto = `T = ${formatarNumero(quadro.tempoDescida, 2)} s`;
-  const calibracaoTexto = quadro.modoCalibracao ? 'calibração: bipe ligado' : 'sem som';
-  painelTempo.malha.visible = quadro.estado === PARADO;
-  painelTempo.escrever(`${tempoTexto}\n${calibracaoTexto}`);
-
-  painelDepuracao.malha.visible = depuracaoLigada;
-  if (depuracaoLigada) {
-    painelDepuracao.escrever(`${quadro.estado}\n${tempoTexto}\n${fps} fps\nversão ${versao}`);
-  }
-
-  painelMensagem.malha.visible = quadro.estado === MENSAGEM;
-}
 
 renderer.setAnimationLoop((instanteMs, frame) => {
   const dt = ultimoQuadroMs === null ? 0 : Math.min(0.1, (instanteMs - ultimoQuadroMs) / 1000);
   ultimoQuadroMs = instanteMs;
-  contarQuadro(instanteMs);
 
-  for (const evento of entrada.coletar(renderer.xr.getSession())) {
-    if (evento.comando === 'depuracao') depuracaoLigada = !depuracaoLigada;
-    else simulacao.processar(evento, instanteMs);
-  }
+  for (const evento of entrada.coletar(renderer.xr.getSession())) simulacao.processar(evento, instanteMs);
 
   if (frame) travarCabecaNoBanco(frame);
   else posicionarCameraDesktop();
@@ -151,7 +109,7 @@ renderer.setAnimationLoop((instanteMs, frame) => {
   const quadro = simulacao.atualizar(instanteMs, dt);
   atualizarCena(quadro);
   efeitos.atualizar(quadro);
-  atualizarPaineis(quadro);
+  painelMensagem.malha.visible = quadro.estado === MENSAGEM;
   renderer.render(cena, camera);
 });
 
@@ -164,12 +122,10 @@ const textoVersao = document.getElementById('versao');
 
 function comecar() {
   telaInicio.hidden = true;
-  recentralizarPendente = true;
-  simulacao.voltarAoInicio(performance.now());
+  simulacao.reiniciar();
 }
 
 botaoVR.addEventListener('click', async () => {
-  audio.destravar();
   try {
     const sessao = await navigator.xr.requestSession('immersive-vr');
     sessao.addEventListener('end', () => { telaInicio.hidden = false; });
@@ -180,10 +136,7 @@ botaoVR.addEventListener('click', async () => {
   }
 });
 
-botaoDesktop.addEventListener('click', () => {
-  audio.destravar();
-  comecar();
-});
+botaoDesktop.addEventListener('click', comecar);
 
 if (navigator.xr) {
   navigator.xr.isSessionSupported('immersive-vr').then((suportado) => {
@@ -207,8 +160,7 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.ready.then((registro) => {
     const canal = new MessageChannel();
     canal.port1.onmessage = (evento) => {
-      versao = evento.data;
-      textoVersao.textContent = `Versão ${versao}: pronto para uso offline`;
+      textoVersao.textContent = `Versão ${evento.data}: pronto para uso offline`;
     };
     registro.active.postMessage('versao', [canal.port2]);
   });

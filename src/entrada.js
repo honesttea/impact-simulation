@@ -1,23 +1,8 @@
-// Indices do mapeamento xr-standard do Quest Touch.
-const BOTAO_GATILHO = 0;
-const BOTAO_GRIP = 1;
-const BOTAO_ANALOGICO = 3;
+// Indices do mapeamento xr-standard do Quest Touch: A/X e B/Y.
 const BOTAO_A = 4;
 const BOTAO_B = 5;
-const EIXO_VERTICAL = 3;
 
-const LIMIAR_EIXO = 0.7;
-const LIMIAR_SOLTURA_EIXO = 0.3;
-
-const TECLAS = {
-  KeyA: 'A',
-  Space: 'gatilho',
-  KeyB: 'B',
-  ArrowUp: 'T+',
-  ArrowDown: 'T-',
-  KeyD: 'depuracao',
-  KeyC: 'calibracao',
-};
+const TECLAS = { KeyA: 'A', KeyB: 'B' };
 
 export function criarEntrada() {
   const estadoAnterior = new WeakMap();
@@ -34,31 +19,11 @@ export function criarEntrada() {
     for (const fonte of sessao.inputSources) {
       const gamepad = fonte.gamepad;
       if (!gamepad) continue;
-
-      const anterior = estadoAnterior.get(fonte) ?? { botoes: [], eixoArmado: true };
-      const apertado = (indice) => Boolean(gamepad.buttons[indice]?.pressed);
-      const bordaDe = (indice) => apertado(indice) && !anterior.botoes[indice];
-
-      if (bordaDe(BOTAO_A)) eventos.push({ comando: 'A', fonte });
-      if (bordaDe(BOTAO_B)) eventos.push({ comando: 'B', fonte });
-      if (bordaDe(BOTAO_GATILHO)) eventos.push({ comando: 'gatilho', fonte });
-      if (bordaDe(BOTAO_ANALOGICO)) eventos.push({ comando: 'depuracao', fonte });
-      if (bordaDe(BOTAO_GRIP)) eventos.push({ comando: 'calibracao', fonte });
-
-      // Para cima o eixo e negativo. Um passo por empurrao: so rearma depois de voltar ao centro.
-      const eixo = gamepad.axes[EIXO_VERTICAL] ?? 0;
-      let eixoArmado = anterior.eixoArmado;
-      if (eixoArmado && Math.abs(eixo) > LIMIAR_EIXO) {
-        eventos.push({ comando: eixo < 0 ? 'T+' : 'T-', fonte });
-        eixoArmado = false;
-      } else if (Math.abs(eixo) < LIMIAR_SOLTURA_EIXO) {
-        eixoArmado = true;
-      }
-
-      estadoAnterior.set(fonte, {
-        botoes: gamepad.buttons.map((botao) => botao.pressed),
-        eixoArmado,
-      });
+      const anterior = estadoAnterior.get(fonte) ?? [];
+      const apertado = gamepad.buttons.map((botao) => botao.pressed);
+      if (apertado[BOTAO_A] && !anterior[BOTAO_A]) eventos.push({ comando: 'A', fonte });
+      if (apertado[BOTAO_B] && !anterior[BOTAO_B]) eventos.push({ comando: 'B', fonte });
+      estadoAnterior.set(fonte, apertado);
     }
   }
 

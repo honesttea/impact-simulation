@@ -1,5 +1,5 @@
 // Ao mudar qualquer arquivo, aumente VERSAO para o Quest baixar a nova copia.
-const VERSAO = '4';
+const VERSAO = '5';
 const NOME_CACHE = `simulador-impacto-v${VERSAO}`;
 
 const ARQUIVOS = [
@@ -9,7 +9,6 @@ const ARQUIVOS = [
   './manifest.webmanifest',
   './icone.svg',
   './src/main.js',
-  './src/audio.js',
   './src/carro.js',
   './src/cena.js',
   './src/efeitos.js',
