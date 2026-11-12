@@ -15,6 +15,8 @@ const TIPOS = {
   '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.glb': 'model/gltf-binary',
+  '.woff2': 'font/woff2',
 };
 
 createServer(async (requisicao, resposta) => {

@@ -1,11 +1,20 @@
 import * as THREE from 'three';
 import { criarNossoCarro, PARA_CHOQUE_DIANTEIRO_Z } from './carro.js';
+import { carregarPartes } from './modelos.js';
 
 const COR_CEU = 0xa9cde8;
 const LARGURA_FAIXA = 3.5;
 const PERIODO_TRACEJADO = 16;
 const COMPRIMENTO_ESTRADA = 320;
 const COMPRIMENTO_BLOCO_PAISAGEM = 48;
+
+// Modelos Kenney (CC0). Se algum nao carregar, fica a versao feita de caixas.
+const MODELO_CARRO_DA_FRENTE = 'sedan.glb';
+const ESCALA_CARRO_DA_FRENTE = 1.2;
+const ALTURA_RELATIVA_LANTERNA = 0.5;
+const MODELOS_ARVORE = ['tree_default.glb', 'tree_oak.glb', 'tree_pineRoundA.glb', 'tree_pineTallA.glb'];
+const ESCALA_ARVORE = 4.5;
+const EIXO_Y = new THREE.Vector3(0, 1, 0);
 
 export function criarCena(renderer) {
   const cena = new THREE.Scene();
@@ -33,16 +42,23 @@ export function criarCena(renderer) {
   cena.add(estrada);
 
   const paisagem = criarPaisagem();
-  cena.add(paisagem);
+  cena.add(paisagem.grupo);
 
   const carroDaFrente = criarCarroDaFrente();
   cena.add(carroDaFrente.grupo);
+
+  carregarPartes(MODELO_CARRO_DA_FRENTE)
+    .then(carroDaFrente.usarModelo)
+    .catch((erro) => console.warn('Carro da frente em caixas:', erro));
+  Promise.all(MODELOS_ARVORE.map(carregarPartes))
+    .then(paisagem.trocarArvores)
+    .catch((erro) => console.warn('Arvores simples:', erro));
 
   cena.add(criarNossoCarro());
 
   function atualizarCena(quadro) {
     texturaEstrada.offset.y = (quadro.distanciaPercorrida / PERIODO_TRACEJADO) % 1;
-    paisagem.position.z = quadro.distanciaPercorrida % COMPRIMENTO_BLOCO_PAISAGEM;
+    paisagem.grupo.position.z = quadro.distanciaPercorrida % COMPRIMENTO_BLOCO_PAISAGEM;
     carroDaFrente.grupo.position.z = PARA_CHOQUE_DIANTEIRO_Z - quadro.distanciaFrente;
     carroDaFrente.acenderFreio(quadro.freioAceso);
   }
@@ -118,12 +134,38 @@ function criarPaisagem() {
     });
     malha.frustumCulled = false;
     grupo.add(malha);
+    return malha;
   };
 
   instanciar(new THREE.CylinderGeometry(0.08, 0.12, 7, 6), new THREE.MeshLambertMaterial({ color: 0x8a8d90 }), postes, 3.5);
-  instanciar(new THREE.CylinderGeometry(0.15, 0.22, 2.4, 6), new THREE.MeshLambertMaterial({ color: 0x6b4a2f }), arvores, 1.2);
-  instanciar(new THREE.ConeGeometry(1.6, 4.2, 7), new THREE.MeshLambertMaterial({ color: 0x2f6b34 }), arvores, 4.2);
-  return grupo;
+  const arvoresSimples = [
+    instanciar(new THREE.CylinderGeometry(0.15, 0.22, 2.4, 6), new THREE.MeshLambertMaterial({ color: 0x6b4a2f }), arvores, 1.2),
+    instanciar(new THREE.ConeGeometry(1.6, 4.2, 7), new THREE.MeshLambertMaterial({ color: 0x2f6b34 }), arvores, 4.2),
+  ];
+
+  // Cada modelo fica com uma parte das posicoes; cada parte do modelo (tronco, folhas) vira uma malha instanciada.
+  function trocarArvores(modelos) {
+    for (const malha of arvoresSimples) grupo.remove(malha);
+    const posicao = new THREE.Vector3();
+    const giro = new THREE.Quaternion();
+    const escala = new THREE.Vector3();
+    modelos.forEach((partes, indiceModelo) => {
+      const minhas = arvores.filter((_, i) => i % modelos.length === indiceModelo);
+      for (const { geometria, material } of partes) {
+        const malha = new THREE.InstancedMesh(geometria, material, minhas.length);
+        minhas.forEach(([x, z, tamanho], i) => {
+          posicao.set(x, 0, z);
+          giro.setFromAxisAngle(EIXO_Y, i * 2.4);
+          escala.setScalar(tamanho * ESCALA_ARVORE);
+          malha.setMatrixAt(i, matriz.compose(posicao, giro, escala));
+        });
+        malha.frustumCulled = false;
+        grupo.add(malha);
+      }
+    });
+  }
+
+  return { grupo, trocarArvores };
 }
 
 function criarCarroDaFrente() {
@@ -149,12 +191,37 @@ function criarCarroDaFrente() {
   const luzApagada = new THREE.Color(0x4a0d0d);
   const luzAcesa = new THREE.Color(0xff2020);
   const materialFreio = new THREE.MeshBasicMaterial({ color: luzApagada });
-  caixa(0.36, 0.16, 0.04, materialFreio, -0.66, 0.86, 0.0);
-  caixa(0.36, 0.16, 0.04, materialFreio, 0.66, 0.86, 0.0);
-  caixa(0.42, 0.05, 0.03, materialFreio, 0, 1.54, -1.12);
+  const lanternas = [
+    caixa(0.36, 0.16, 0.04, materialFreio, -0.66, 0.86, 0.0),
+    caixa(0.36, 0.16, 0.04, materialFreio, 0.66, 0.86, 0.0),
+  ];
+  const terceiraLuz = caixa(0.42, 0.05, 0.03, materialFreio, 0, 1.54, -1.12);
+  const caixasDaCarroceria = grupo.children.filter((malha) => malha.material !== materialFreio);
+
+  // Troca as caixas pelo modelo; as lanternas continuam nossas, para acender no freio.
+  function usarModelo(partes) {
+    const modelo = new THREE.Group();
+    for (const { geometria, material } of partes) modelo.add(new THREE.Mesh(geometria, material));
+    modelo.scale.setScalar(ESCALA_CARRO_DA_FRENTE);
+    // Os carros do Kenney apontam para +Z; o nosso referencial pede a frente em -Z.
+    modelo.rotation.y = Math.PI;
+    modelo.updateMatrixWorld(true);
+    const limites = new THREE.Box3().setFromObject(modelo);
+    modelo.position.z = -limites.max.z;
+    grupo.add(modelo);
+    for (const malha of caixasDaCarroceria) grupo.remove(malha);
+    terceiraLuz.visible = false;
+
+    const meiaLargura = (limites.max.x - limites.min.x) / 2;
+    const alturaLanterna = (limites.max.y - limites.min.y) * ALTURA_RELATIVA_LANTERNA;
+    lanternas.forEach((lanterna, i) => {
+      lanterna.position.set((i === 0 ? -1 : 1) * (meiaLargura - 0.36), alturaLanterna, 0.01);
+    });
+  }
 
   return {
     grupo,
+    usarModelo,
     acenderFreio(aceso) {
       materialFreio.color.copy(aceso ? luzAcesa : luzApagada);
     },

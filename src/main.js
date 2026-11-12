@@ -5,7 +5,7 @@ import { POSICAO_BANCO } from './carro.js';
 import { criarEfeitos } from './efeitos.js';
 import { criarEntrada } from './entrada.js';
 import { criarSimulacao, MENSAGEM } from './estados.js';
-import { criarPainelTexto } from './painel.js';
+import { criarPainelEncerramento } from './painel.js';
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -32,9 +32,12 @@ const simulacao = criarSimulacao({ recentralizar: () => { recentralizarPendente 
 const formatarNumero = (valor, casas) =>
   valor.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
 
-const painelMensagem = criarPainelTexto({ larguraPx: 1024, alturaPx: 360, larguraMetros: 1.1, tamanhoFonte: 66 });
-painelMensagem.malha.position.set(0, 0.05, -1.4);
-painelMensagem.escrever(config.mensagem.replace('{X}', formatarNumero(config.velocidadeImpactoKmh, 0)));
+const painelMensagem = criarPainelEncerramento({
+  mensagem: config.mensagem.replace('{X}', formatarNumero(config.velocidadeImpactoKmh, 0)),
+  textoGoverno: config.textoGoverno,
+  larguraMetros: 1.2,
+});
+painelMensagem.malha.position.set(0, 0, -1.4);
 tranco.add(painelMensagem.malha);
 
 // Trava da cabeca: a translacao do headset e anulada, so a rotacao vale.

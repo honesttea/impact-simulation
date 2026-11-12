@@ -8,9 +8,11 @@ export const config = {
 
   duracaoEscurecimento: 0.6,
   atrasoMensagem: 0.9,
-  velocidadeImpactoKmh: 10,
+  velocidadeImpactoKmh: 7,
   // {X} vira a velocidade de impacto acima.
-  mensagem: 'Esta batida foi a {X} km/h.\nUse sempre o cinto.',
+  mensagem: 'Esta batida foi a {X} km/h.\nSempre use o cinto de segurança.',
+  // Escrito por extenso, sem logo: periodo eleitoral.
+  textoGoverno: 'Governo do Distrito Federal',
 
   vibracao: {
     reinicio: { intensidade: 0.7, ms: 90 },
